@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Matrix Gaming Center</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d0820">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Matrix">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
@@ -28,30 +35,49 @@
       radial-gradient(circle at 15% 0%, rgba(155,59,255,0.16), transparent 45%),
       radial-gradient(circle at 85% 20%, rgba(40,240,224,0.10), transparent 40%),
       var(--bg);
+    background-size:200% 200%;
+    animation:bgDrift 22s ease-in-out infinite;
     color:var(--text);
     font-family:'Tajawal', sans-serif;
     min-height:100vh;
     overflow-x:hidden;
   }
+  @keyframes bgDrift{
+    0%{background-position:0% 0%, 100% 0%, 0 0;}
+    50%{background-position:20% 30%, 70% 40%, 0 0;}
+    100%{background-position:0% 0%, 100% 0%, 0 0;}
+  }
+  #matrixRain{position:fixed; inset:0; z-index:0; opacity:0.16; pointer-events:none;}
   .scanlines{
     position:fixed; inset:0; pointer-events:none; z-index:1;
     background:repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
   }
+  .vignette{position:fixed; inset:0; pointer-events:none; z-index:1; box-shadow: inset 0 0 160px rgba(0,0,0,0.75);}
   .wrap{position:relative; z-index:2; max-width:1180px; margin:0 auto; padding:20px 16px 60px;}
 
   /* header */
   header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:26px; flex-wrap:wrap;}
   .brand{display:flex; align-items:center; gap:12px;}
   .brand-mark{
-    width:44px;height:44px; border-radius:10px;
+    width:44px;height:44px; border-radius:12px;
     background:linear-gradient(135deg, var(--purple), var(--cyan));
+    background-size:200% 200%;
+    animation:markShift 4s ease-in-out infinite;
     display:flex;align-items:center;justify-content:center;
     font-family:'Orbitron',sans-serif; font-weight:900; color:#050310; font-size:20px;
-    box-shadow:0 0 22px rgba(155,59,255,0.55);
+    box-shadow:0 0 22px rgba(155,59,255,0.55), 0 0 40px rgba(40,240,224,0.25);
+  }
+  @keyframes markShift{
+    0%,100%{background-position:0% 50%;}
+    50%{background-position:100% 50%;}
   }
   .brand h1{
     font-family:'Orbitron',sans-serif; font-size:20px; letter-spacing:1px; margin:0; color:#fff;
-    text-shadow:0 0 18px rgba(155,59,255,0.5);
+    animation:titleGlow 3s ease-in-out infinite;
+  }
+  @keyframes titleGlow{
+    0%,100%{text-shadow:0 0 14px rgba(155,59,255,0.45), 0 0 2px #fff;}
+    50%{text-shadow:0 0 26px rgba(155,59,255,0.85), 0 0 10px rgba(40,240,224,0.4);}
   }
   .brand span.sub{display:block; font-size:11px; color:var(--text-dim); font-family:'Tajawal',sans-serif; letter-spacing:1px; margin-top:2px;}
   .head-actions{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
@@ -59,11 +85,13 @@
   .btn{
     border:1px solid var(--panel-line); background:rgba(155,59,255,0.08); color:var(--text);
     padding:9px 16px; border-radius:9px; font-family:'Tajawal',sans-serif; font-weight:700; font-size:14px;
-    cursor:pointer; transition:.15s ease; white-space:nowrap;
+    cursor:pointer; transition:.15s ease; white-space:nowrap; position:relative; overflow:hidden;
   }
-  .btn:hover{background:rgba(155,59,255,0.18); border-color:var(--purple);}
-  .btn.primary{background:linear-gradient(135deg, var(--purple), #7a1fe0); border:none; box-shadow:0 0 16px rgba(155,59,255,0.4);}
-  .btn.primary:hover{filter:brightness(1.12);}
+  .btn:active{transform:scale(0.96);}
+  .btn:hover{background:rgba(155,59,255,0.18); border-color:var(--purple); box-shadow:0 0 14px rgba(155,59,255,0.35);}
+  .btn.primary{background:linear-gradient(135deg, var(--purple), #7a1fe0); background-size:200% 200%; border:none; box-shadow:0 0 16px rgba(155,59,255,0.4); animation:primaryShift 3s ease-in-out infinite;}
+  @keyframes primaryShift{0%,100%{background-position:0% 50%;} 50%{background-position:100% 50%;}}
+  .btn.primary:hover{filter:brightness(1.12); box-shadow:0 0 24px rgba(155,59,255,0.65);}
   .btn.ghost{background:transparent;}
   .btn.danger{background:rgba(255,59,92,0.12); border-color:rgba(255,59,92,0.4); color:#ffb0bf;}
   .btn.danger:hover{background:rgba(255,59,92,0.22);}
@@ -87,10 +115,24 @@
   .card{
     background:linear-gradient(180deg, var(--panel), rgba(18,11,40,0.6));
     border:1px solid var(--panel-line); border-radius:14px; padding:16px;
-    cursor:pointer; position:relative; overflow:hidden; transition:.15s ease;
+    cursor:pointer; position:relative; overflow:hidden; transition:.2s ease;
     min-height:150px; display:flex; flex-direction:column; justify-content:space-between;
+    animation:cardIn .5s ease backwards;
   }
-  .card:hover{transform:translateY(-2px); border-color:var(--purple);}
+  @keyframes cardIn{ from{opacity:0; transform:translateY(14px) scale(.96);} to{opacity:1; transform:translateY(0) scale(1);} }
+  .grid .card:nth-child(1){animation-delay:.03s;}
+  .grid .card:nth-child(2){animation-delay:.07s;}
+  .grid .card:nth-child(3){animation-delay:.11s;}
+  .grid .card:nth-child(4){animation-delay:.15s;}
+  .grid .card:nth-child(5){animation-delay:.19s;}
+  .grid .card:nth-child(6){animation-delay:.23s;}
+  .grid .card:nth-child(7){animation-delay:.27s;}
+  .card::before{
+    content:''; position:absolute; inset:0; border-radius:14px; padding:1px;
+    background:linear-gradient(135deg, transparent, transparent);
+    opacity:0; transition:.2s ease; pointer-events:none;
+  }
+  .card:hover{transform:translateY(-4px); border-color:var(--purple); box-shadow:0 10px 30px rgba(155,59,255,0.25), 0 0 0 1px rgba(155,59,255,0.15);}
   .card.free{box-shadow:inset 0 0 0 1px rgba(43,224,138,0.15);}
   .card.busy{box-shadow:inset 0 0 0 1px rgba(255,59,92,0.2);}
   .card.busy.overdue{animation:pulseRed 1.4s infinite; border-color:var(--red);}
@@ -153,6 +195,16 @@
   .toast{background:linear-gradient(135deg, rgba(255,59,92,0.95), rgba(155,59,255,0.9)); color:#fff; padding:12px 16px; border-radius:10px; font-size:13.5px; font-weight:700; box-shadow:0 8px 24px rgba(0,0,0,0.4); animation:slideDown .25s ease;}
   @keyframes slideDown{from{opacity:0; transform:translateY(-12px);} to{opacity:1; transform:translateY(0);}}
 
+  #installBar{margin-top:12px;}
+  .install-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    background:linear-gradient(135deg, rgba(155,59,255,0.14), rgba(40,240,224,0.08));
+    border:1px solid var(--panel-line); border-radius:12px; padding:12px 16px;
+    animation:cardIn .4s ease;
+  }
+  .install-banner span{font-size:13.5px; color:var(--text);}
+  .install-banner b{color:var(--cyan);}
+
   footer{margin-top:50px; text-align:center; padding-top:20px; border-top:1px solid var(--panel-line); color:var(--text-dim); font-size:13px;}
   footer a{color:var(--cyan); text-decoration:none; font-weight:700;}
   footer a:hover{text-decoration:underline;}
@@ -167,7 +219,9 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
+<canvas id="matrixRain"></canvas>
 <div class="scanlines"></div>
+<div class="vignette"></div>
 <div class="toast-wrap" id="toastWrap"></div>
 <div class="wrap">
   <header>
@@ -180,6 +234,7 @@
     </div>
     <div class="head-actions" id="headActions"></div>
   </header>
+  <div id="installBar"></div>
 
   <div class="section-title"><h2>الأجهزة</h2><div class="line"></div></div>
   <div class="grid" id="deviceGrid"></div>
@@ -194,6 +249,70 @@
 <div id="modalRoot"></div>
 
 <script>
+/* ===================== MATRIX RAIN BACKGROUND ===================== */
+(function matrixRain(){
+  const canvas = document.getElementById('matrixRain');
+  const ctx = canvas.getContext('2d');
+  let w, h, cols, drops;
+  const chars = "01ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍPS◆●▲";
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    const fontSize = 16;
+    cols = Math.floor(w/fontSize);
+    drops = new Array(cols).fill(0).map(()=>Math.random()*-40);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  function draw(){
+    ctx.fillStyle = 'rgba(5,2,12,0.09)';
+    ctx.fillRect(0,0,w,h);
+    const fontSize=16;
+    ctx.font = fontSize+"px monospace";
+    for(let i=0;i<cols;i++){
+      const text = chars[Math.floor(Math.random()*chars.length)];
+      const grad = Math.random()>0.85 ? '#28f0e0' : '#9b3bff';
+      ctx.fillStyle = grad;
+      ctx.fillText(text, i*fontSize, drops[i]*fontSize);
+      if(drops[i]*fontSize > h && Math.random()>0.975) drops[i]=0;
+      drops[i]++;
+    }
+  }
+  setInterval(draw, 55);
+})();
+
+/* ===================== PWA: SERVICE WORKER + INSTALL PROMPT ===================== */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner();
+});
+window.addEventListener('appinstalled', ()=>{
+  deferredInstallPrompt = null;
+  document.getElementById('installBar').innerHTML = '';
+});
+function showInstallBanner(){
+  document.getElementById('installBar').innerHTML = `
+    <div class="install-banner">
+      <span>ثبّت <b>Matrix Gaming</b> كتطبيق على جهازك، يفتح زي أي برنامج عادي من غير متصفح</span>
+      <button class="btn primary small" id="installBtn">تثبيت التطبيق</button>
+    </div>
+  `;
+  document.getElementById('installBtn').onclick = async ()=>{
+    if(!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    document.getElementById('installBar').innerHTML = '';
+  };
+}
+
 /* ===================== CONFIG ===================== */
 // ⚠️ حط هنا بيانات مشروع Firebase بتاعك (من Firebase Console > Project settings > Your apps > SDK setup and configuration)
 const firebaseConfig = {
@@ -303,6 +422,19 @@ function calcCost(deviceType, mode, ms){
   return Math.round(hours * rate(deviceType, mode));
 }
 function nowISO(){ return new Date().toISOString(); }
+let serverTimeOffset = 0;
+function nowMs(){ return Date.now() + serverTimeOffset; }
+async function syncServerTime(){
+  try{
+    const ref = db.collection('matrixCenter').doc('_timesync');
+    const t0 = Date.now();
+    await ref.set({ts: firebase.firestore.FieldValue.serverTimestamp()});
+    const snap = await ref.get();
+    const t1 = Date.now();
+    const serverMillis = snap.data().ts.toMillis();
+    serverTimeOffset = serverMillis - (t0 + (t1-t0)/2);
+  }catch(e){ serverTimeOffset = 0; }
+}
 function toLocalInputValue(d){
   const pad = n=>String(n).padStart(2,'0');
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
@@ -320,7 +452,7 @@ function renderToasts(){
 
 /* ===================== TICK / ALERTS ===================== */
 function tick(){
-  const now = Date.now();
+  const now = nowMs();
   let changed = false;
   DEVICE_DEFS.forEach(dv=>{
     const dev = devices[dv.id];
@@ -364,7 +496,7 @@ function renderHeader(){
 /* ===================== RENDER: GRID ===================== */
 function renderGrid(){
   const grid = document.getElementById('deviceGrid');
-  const now = Date.now();
+  const now = nowMs();
   grid.innerHTML = DEVICE_DEFS.map(dv=>{
     const dev = devices[dv.id] || {session:null};
     const s = dev.session;
@@ -451,7 +583,7 @@ function updateSessionModalTimer(){
   if(!dv) return;
   const dev = devices[dv.id];
   if(!dev || !dev.session) return;
-  const now = Date.now();
+  const now = nowMs();
   const start = new Date(dev.session.startTime).getTime();
   const elapsed = now-start;
   const timerEl = document.getElementById('sessionModalTimer');
@@ -539,7 +671,7 @@ async function openDeviceModal(id){
   // BUSY device
   const s = dev.session;
   const start = new Date(s.startTime).getTime();
-  const elapsedNow = Date.now()-start;
+  const elapsedNow = nowMs()-start;
   if(!isAdmin){
     showModal(`
       <button class="close-x" id="mClose">✕</button>
@@ -592,7 +724,7 @@ async function openDeviceModal(id){
     };
   }
   document.getElementById('endBtn').onclick = async ()=>{
-    const endTime = Date.now();
+    const endTime = nowMs();
     const elapsed = endTime-start;
     const cost = calcCost(dv.type, s.mode, elapsed);
     history.unshift({
@@ -714,10 +846,12 @@ async function init(){
     return;
   }
   try{
+    await syncServerTime();
     await loadAll();
     renderGrid();
     attachLiveListeners();
     setInterval(tick, 1000);
+    setInterval(syncServerTime, 120000);
   }catch(err){
     document.getElementById('deviceGrid').innerHTML = `<div class="empty" style="grid-column:1/-1; color:var(--red);">⚠ في مشكلة في الاتصال بـ Firebase:<br>${(err && err.message) || err}<br><br>غالبًا الأسباب: بيانات firebaseConfig غلط، أو Firestore Database لسه متعملوش Create، أو الـ rules رافضة الوصول.</div>`;
     console.error(err);
