@@ -117,16 +117,7 @@
     border:1px solid var(--panel-line); border-radius:14px; padding:16px;
     cursor:pointer; position:relative; overflow:hidden; transition:.2s ease;
     min-height:150px; display:flex; flex-direction:column; justify-content:space-between;
-    animation:cardIn .5s ease backwards;
   }
-  @keyframes cardIn{ from{opacity:0; transform:translateY(14px) scale(.96);} to{opacity:1; transform:translateY(0) scale(1);} }
-  .grid .card:nth-child(1){animation-delay:.03s;}
-  .grid .card:nth-child(2){animation-delay:.07s;}
-  .grid .card:nth-child(3){animation-delay:.11s;}
-  .grid .card:nth-child(4){animation-delay:.15s;}
-  .grid .card:nth-child(5){animation-delay:.19s;}
-  .grid .card:nth-child(6){animation-delay:.23s;}
-  .grid .card:nth-child(7){animation-delay:.27s;}
   .card::before{
     content:''; position:absolute; inset:0; border-radius:14px; padding:1px;
     background:linear-gradient(135deg, transparent, transparent);
@@ -200,7 +191,6 @@
     display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
     background:linear-gradient(135deg, rgba(155,59,255,0.14), rgba(40,240,224,0.08));
     border:1px solid var(--panel-line); border-radius:12px; padding:12px 16px;
-    animation:cardIn .4s ease;
   }
   .install-banner span{font-size:13.5px; color:var(--text);}
   .install-banner b{color:var(--cyan);}
