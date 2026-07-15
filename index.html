@@ -239,6 +239,64 @@
 <div id="modalRoot"></div>
 
 <script>
+/* ===================== ALERT SYSTEM: sound + browser notification ===================== */
+let audioCtx = null;
+function unlockAudio(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){}
+  }else if(audioCtx.state === 'suspended'){
+    audioCtx.resume();
+  }
+}
+document.addEventListener('click', unlockAudio, {once:false});
+
+function tone(freq, startTime, duration, type, peakGain){
+  if(!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, startTime);
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.exponentialRampToValueAtTime(peakGain, startTime+0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime+duration);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(startTime); osc.stop(startTime+duration+0.02);
+}
+function playAlarmSound(){
+  unlockAudio();
+  if(!audioCtx) return;
+  const t = audioCtx.currentTime;
+  // energetic rising 3-note "alert" fanfare + punchy sub thump, gaming-arcade style
+  tone(220, t, 0.12, 'sawtooth', 0.35);
+  tone(523.25, t+0.02, 0.16, 'square', 0.25);
+  tone(659.25, t+0.20, 0.16, 'square', 0.28);
+  tone(880.00, t+0.40, 0.30, 'square', 0.32);
+  tone(110, t+0.02, 0.35, 'sine', 0.4);
+}
+
+function requestNotifPermission(){
+  if('Notification' in window && Notification.permission === 'default'){
+    Notification.requestPermission();
+  }
+}
+function showDeviceNotification(deviceName){
+  if('Notification' in window && Notification.permission === 'granted'){
+    try{
+      const n = new Notification('⏰ Matrix Gaming — انتهى الوقت!', {
+        body: `${deviceName} خلص وقته المحدد — روح اقفله أو زوّد وقت`,
+        tag: 'matrix-overdue-'+deviceName,
+        requireInteraction: true
+      });
+      n.onclick = ()=>{ window.focus(); n.close(); };
+    }catch(e){}
+  }
+}
+function fireOverdueAlert(deviceName){
+  pushToast(`⏰ ${deviceName} — انتهى الوقت المحدد!`);
+  playAlarmSound();
+  showDeviceNotification(deviceName);
+}
+
 /* ===================== MATRIX RAIN BACKGROUND ===================== */
 (function matrixRain(){
   const canvas = document.getElementById('matrixRain');
@@ -381,13 +439,13 @@ function attachLiveListeners(){
       renderGrid();
       if(sessionModalDeviceId) updateSessionModalTimer();
     }
-  });
+  }, err=>{ console.error('devices listener error', err); });
   pricesRef.onSnapshot(snap=>{
     if(snap.exists){ prices = snap.data().data || prices; renderGrid(); }
-  });
+  }, err=>{ console.error('prices listener error', err); });
   historyRef.onSnapshot(snap=>{
     if(snap.exists){ history = snap.data().data || []; }
-  });
+  }, err=>{ console.error('history listener error', err); });
 }
 
 /* ===================== UTIL ===================== */
@@ -449,10 +507,14 @@ function tick(){
     if(dev && dev.session && dev.session.durationHours && !dev.session.open){
       const start = new Date(dev.session.startTime).getTime();
       const end = start + dev.session.durationHours*3600000;
-      if(now >= end && !dev.session.notified){
-        dev.session.notified = true;
-        changed = true;
-        pushToast(`${dv.name} — انتهى الوقت المحدد`);
+      if(now >= end){
+        const last = dev.session.lastAlertAt || 0;
+        if(!dev.session.notified || (now - last > 25000)){
+          dev.session.notified = true;
+          dev.session.lastAlertAt = now;
+          changed = true;
+          fireOverdueAlert(dv.name);
+        }
       }
     }
   });
@@ -464,11 +526,13 @@ function tick(){
 /* ===================== RENDER: HEADER ===================== */
 function renderHeader(){
   const el = document.getElementById('headActions');
+  const bellBtn = `<button class="btn ghost small" id="btnBell" title="فعّل صوت وإشعار انتهاء الوقت">🔔 التنبيهات</button>`;
   if(isAdmin){
     el.innerHTML = `
       <span class="pill admin">● وضع الإدارة</span>
       <button class="btn ghost" id="btnHistory">السجل</button>
       <button class="btn ghost" id="btnPrices">الأسعار</button>
+      ${bellBtn}
       <button class="btn" id="btnLogout">خروج</button>
     `;
     document.getElementById('btnHistory').onclick = openHistoryModal;
@@ -477,10 +541,17 @@ function renderHeader(){
   }else{
     el.innerHTML = `
       <span class="pill viewer">وضع العرض فقط</span>
+      ${bellBtn}
       <button class="btn primary" id="btnLogin">تسجيل دخول</button>
     `;
     document.getElementById('btnLogin').onclick = openLoginModal;
   }
+  document.getElementById('btnBell').onclick = ()=>{
+    unlockAudio();
+    requestNotifPermission();
+    playAlarmSound();
+    pushToast('التنبيهات شغالة ✅ — هيجيلك صوت وإشعار لما أي جهاز يخلص وقته');
+  };
 }
 
 /* ===================== RENDER: GRID ===================== */
@@ -556,6 +627,8 @@ function openLoginModal(){
     const pass = document.getElementById('loginPass').value.trim();
     if(email===ADMIN_EMAIL && pass===ADMIN_PASS){
       isAdmin = true;
+      unlockAudio();
+      requestNotifPermission();
       closeModal();
       renderHeader();
       renderGrid();

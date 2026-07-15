@@ -1,7 +1,5 @@
-const CACHE_NAME = 'matrix-center-v1';
+const CACHE_NAME = 'matrix-center-v2';
 const ASSETS = [
-  './',
-  './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
@@ -24,12 +22,20 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // network-first for Firestore/Google requests, cache-first for the app shell
   const url = event.request.url;
   if (url.includes('firestore') || url.includes('googleapis') || url.includes('gstatic')) {
-    return; // let these go straight to network, don't intercept
+    return; // let these go straight to network
   }
+  // Always fetch the page itself fresh from network so it's never stale.
+  if (event.request.mode === 'navigate' || url.endsWith('.html') || url.endsWith('/')) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+  // Static assets: cache-first
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
 });
+
