@@ -207,6 +207,7 @@
 </style>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
 <canvas id="matrixRain"></canvas>
@@ -232,7 +233,7 @@
   <div id="adminSections"></div>
 
   <footer>
-    تطوير من المبرمج <a href="https://kareem-mohamed-rust.vercel.app/" target="_blank" rel="noopener">Kareem Mohamed</a>
+    © All Rights Reserved — Developed by <a href="https://kareem-mohamed-rust.vercel.app/" target="_blank" rel="noopener">Kareem Mohamed</a>
   </footer>
 </div>
 
@@ -379,6 +380,8 @@ const db = fbInitError ? null : firebase.firestore();
 
 const ADMIN_EMAIL = "Matrix@center.com";
 const ADMIN_PASS = "1964110000";
+const DEV_EMAIL = "Kareem.00005455249@gmail.com";
+const DEV_PASS = "1682006";
 const DEVICE_DEFS = [
   {id:'d1', name:'جهاز 1', type:'normal'},
   {id:'d2', name:'جهاز 2', type:'normal'},
@@ -392,9 +395,12 @@ const DEFAULT_PRICES = { normal:{single:25, multi:35}, room:{single:30, multi:40
 
 /* ===================== STATE ===================== */
 let isAdmin = false;
+let isSuperAdmin = false;
 let devices = {};
 let prices = JSON.parse(JSON.stringify(DEFAULT_PRICES));
 let history = [];
+let reservations = [];
+let authConfig = { matrixEmail: ADMIN_EMAIL, matrixPass: ADMIN_PASS, devEmail: DEV_EMAIL, devPass: DEV_PASS };
 let toasts = [];
 let tickHandle = null;
 
@@ -402,6 +408,8 @@ let tickHandle = null;
 const devicesRef = db.collection('matrixCenter').doc('devices');
 const pricesRef = db.collection('matrixCenter').doc('prices');
 const historyRef = db.collection('matrixCenter').doc('history');
+const reservationsRef = db.collection('matrixCenter').doc('reservations');
+const authRef = db.collection('matrixCenter').doc('auth');
 
 async function loadAll(){
   const dSnap = await devicesRef.get();
@@ -426,10 +434,25 @@ async function loadAll(){
     history = [];
     await saveHistory();
   }
+  const rSnap = await reservationsRef.get();
+  if(rSnap.exists){
+    reservations = rSnap.data().data || [];
+  }else{
+    reservations = [];
+    await saveReservations();
+  }
+  const aSnap = await authRef.get();
+  if(aSnap.exists){
+    authConfig = aSnap.data().data || authConfig;
+  }else{
+    await saveAuthConfig();
+  }
 }
 async function saveDevices(){ try{ await devicesRef.set({data: devices}); }catch(e){ console.error(e); pushToast('في مشكلة في الاتصال — اتأكد من إعدادات Firebase'); } }
 async function savePrices(){ try{ await pricesRef.set({data: prices}); }catch(e){ console.error(e); } }
 async function saveHistory(){ try{ await historyRef.set({data: history}); }catch(e){ console.error(e); } }
+async function saveReservations(){ try{ await reservationsRef.set({data: reservations}); }catch(e){ console.error(e); } }
+async function saveAuthConfig(){ try{ await authRef.set({data: authConfig}); }catch(e){ console.error(e); } }
 
 /* real-time listeners: any change from any device/browser reflects here instantly */
 function attachLiveListeners(){
@@ -446,6 +469,12 @@ function attachLiveListeners(){
   historyRef.onSnapshot(snap=>{
     if(snap.exists){ history = snap.data().data || []; }
   }, err=>{ console.error('history listener error', err); });
+  reservationsRef.onSnapshot(snap=>{
+    if(snap.exists){ reservations = snap.data().data || []; renderGrid(); }
+  }, err=>{ console.error('reservations listener error', err); });
+  authRef.onSnapshot(snap=>{
+    if(snap.exists){ authConfig = snap.data().data || authConfig; }
+  }, err=>{ console.error('auth listener error', err); });
 }
 
 /* ===================== UTIL ===================== */
@@ -519,6 +548,20 @@ function tick(){
     }
   });
   if(changed) saveDevices();
+
+  let resChanged = false;
+  reservations.forEach(r=>{
+    if(r.status==='active'){
+      const resTime = new Date(r.reservedTime).getTime();
+      if(now > resTime + 5*60000){
+        r.status = 'expired';
+        resChanged = true;
+        pushToast(`⌛ حجز ${r.customerName} على ${r.deviceName} اتلغى تلقائيًا (تأخر أكتر من 5 دقايق)`);
+      }
+    }
+  });
+  if(resChanged) saveReservations();
+
   renderGrid();
   if(document.getElementById('sessionModalTimer')) updateSessionModalTimer();
 }
@@ -527,25 +570,33 @@ function tick(){
 function renderHeader(){
   const el = document.getElementById('headActions');
   const bellBtn = `<button class="btn ghost small" id="btnBell" title="فعّل صوت وإشعار انتهاء الوقت">🔔 التنبيهات</button>`;
+  const bookBtn = `<button class="btn ghost" id="btnBook">📅 احجز جهاز</button>`;
   if(isAdmin){
     el.innerHTML = `
-      <span class="pill admin">● وضع الإدارة</span>
+      <span class="pill admin">● ${isSuperAdmin? 'وضع المطوّر':'وضع الإدارة'}</span>
+      ${bookBtn}
+      <button class="btn ghost" id="btnReservations">الحجوزات</button>
       <button class="btn ghost" id="btnHistory">السجل</button>
       <button class="btn ghost" id="btnPrices">الأسعار</button>
+      ${isSuperAdmin? '<button class="btn ghost" id="btnDevSettings">إعدادات المطوّر</button>':''}
       ${bellBtn}
       <button class="btn" id="btnLogout">خروج</button>
     `;
     document.getElementById('btnHistory').onclick = openHistoryModal;
     document.getElementById('btnPrices').onclick = openPricesModal;
-    document.getElementById('btnLogout').onclick = ()=>{ isAdmin=false; renderHeader(); renderGrid(); pushToast('تم تسجيل الخروج'); };
+    document.getElementById('btnReservations').onclick = openReservationsModal;
+    if(isSuperAdmin) document.getElementById('btnDevSettings').onclick = openDevSettingsModal;
+    document.getElementById('btnLogout').onclick = ()=>{ isAdmin=false; isSuperAdmin=false; renderHeader(); renderGrid(); pushToast('تم تسجيل الخروج'); };
   }else{
     el.innerHTML = `
       <span class="pill viewer">وضع العرض فقط</span>
+      ${bookBtn}
       ${bellBtn}
       <button class="btn primary" id="btnLogin">تسجيل دخول</button>
     `;
     document.getElementById('btnLogin').onclick = openLoginModal;
   }
+  document.getElementById('btnBook').onclick = openBookingModal;
   document.getElementById('btnBell').onclick = ()=>{
     unlockAudio();
     requestNotifPermission();
@@ -591,6 +642,10 @@ function renderGrid(){
       statusHtml = `<div class="card-status">متاح</div>
         <div class="card-cost" style="margin-top:8px;">${prices[dv.type].single} / ${prices[dv.type].multi} ج.م ساعة</div>`;
     }
+    const upcoming = reservations
+      .filter(r=>r.deviceId===dv.id && r.status==='active')
+      .sort((a,b)=> new Date(a.reservedTime)-new Date(b.reservedTime))[0];
+    const resHtml = upcoming ? `<div class="card-mode" style="color:var(--amber);">📅 محجوز ${new Date(upcoming.reservedTime).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})} — ${upcoming.customerName}</div>` : '';
     return `
       <div class="${cls}" data-id="${dv.id}">
         <div class="card-top">
@@ -601,6 +656,7 @@ function renderGrid(){
           <div class="dot ${s?'busy':'free'}"></div>
         </div>
         ${statusHtml}
+        ${resHtml}
       </div>
     `;
   }).join('');
@@ -625,17 +681,149 @@ function openLoginModal(){
   document.getElementById('loginSubmit').onclick = ()=>{
     const email = document.getElementById('loginEmail').value.trim();
     const pass = document.getElementById('loginPass').value.trim();
-    if(email===ADMIN_EMAIL && pass===ADMIN_PASS){
+    if(email===authConfig.matrixEmail && pass===authConfig.matrixPass){
       isAdmin = true;
+      isSuperAdmin = false;
       unlockAudio();
       requestNotifPermission();
       closeModal();
       renderHeader();
       renderGrid();
       pushToast('تم تسجيل الدخول بنجاح');
+    }else if(email===authConfig.devEmail && pass===authConfig.devPass){
+      isAdmin = true;
+      isSuperAdmin = true;
+      unlockAudio();
+      requestNotifPermission();
+      closeModal();
+      renderHeader();
+      renderGrid();
+      pushToast('أهلاً كريم — صلاحيات المطوّر مفعّلة');
     }else{
       document.getElementById('loginErr').style.display='block';
     }
+  };
+}
+
+/* ===================== BOOKING MODAL (public — anyone can reserve a device) ===================== */
+function openBookingModal(){
+  const now = new Date(nowMs());
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const minVal = now.toISOString().slice(0,16);
+  const deviceOptions = DEVICE_DEFS.map(dv=>`<option value="${dv.id}">${dv.name}${dv.type==='room'?' (VIP)':''}</option>`).join('');
+  showModal(`
+    <button class="close-x" id="mClose">✕</button>
+    <h3>حجز جهاز</h3>
+    <div class="hint">هيتلغي الحجز تلقائيًا لو اتأخرت أكتر من 5 دقايق عن معادك</div>
+    <div class="field">
+      <label>اختار الجهاز</label>
+      <select id="bookDevice">${deviceOptions}</select>
+    </div>
+    <div class="field">
+      <label>معاد الحجز</label>
+      <input type="datetime-local" id="bookTime" min="${minVal}" value="${minVal}">
+    </div>
+    <div class="field">
+      <label>اسمك</label>
+      <input type="text" id="bookName" placeholder="اكتب اسمك">
+    </div>
+    <div class="error" id="bookErr" style="display:none;">اكتب اسمك واختار معاد صحيح</div>
+    <div class="modal-actions">
+      <button class="btn primary" id="bookSubmit">تأكيد الحجز</button>
+    </div>
+  `);
+  document.getElementById('mClose').onclick = closeModal;
+  document.getElementById('bookSubmit').onclick = async ()=>{
+    const deviceId = document.getElementById('bookDevice').value;
+    const timeVal = document.getElementById('bookTime').value;
+    const name = document.getElementById('bookName').value.trim();
+    if(!name || !timeVal){
+      document.getElementById('bookErr').style.display='block';
+      return;
+    }
+    const dv = DEVICE_DEFS.find(d=>d.id===deviceId);
+    const reservedTime = new Date(timeVal).toISOString();
+    reservations.push({
+      id: Date.now()+'-'+deviceId,
+      deviceId, deviceName: dv.name,
+      customerName: name,
+      reservedTime,
+      createdAt: nowISO(),
+      status: 'active'
+    });
+    await saveReservations();
+    unlockAudio();
+    requestNotifPermission();
+    closeModal();
+    renderGrid();
+    pushToast(`تم حجز ${dv.name} الساعة ${new Date(reservedTime).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}`);
+    const msUntil = new Date(reservedTime).getTime() - nowMs();
+    if(msUntil > 0 && msUntil < 6*3600000){
+      setTimeout(()=>{
+        if('Notification' in window && Notification.permission==='granted'){
+          try{ new Notification('📅 معادك دلوقتي!', {body:`معاد حجزك على ${dv.name} وصل — روح المركز خلال 5 دقايق`}); }catch(e){}
+        }
+        playAlarmSound();
+        pushToast(`📅 معادك على ${dv.name} وصل يا ${name}!`);
+      }, msUntil);
+    }
+  };
+}
+
+/* ===================== RESERVATIONS LIST (admin) ===================== */
+function openReservationsModal(){
+  const sorted = [...reservations].sort((a,b)=> new Date(b.reservedTime)-new Date(a.reservedTime));
+  const statusLabel = {active:'نشط', expired:'اتلغى (تأخير)', cancelled:'ملغي', fulfilled:'تم'};
+  const statusColor = {active:'var(--green)', expired:'var(--red)', cancelled:'var(--text-dim)', fulfilled:'var(--cyan)'};
+  const rows = sorted.length ? sorted.map(r=>`
+    <tr>
+      <td>${r.deviceName}</td>
+      <td>${r.customerName}</td>
+      <td>${new Date(r.reservedTime).toLocaleString('ar-EG',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}</td>
+      <td><b style="color:${statusColor[r.status]||'#fff'}">${statusLabel[r.status]||r.status}</b></td>
+      <td>${r.status==='active'? `<button class="btn small danger" data-cancel="${r.id}">إلغاء</button>`:''}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="5" class="empty">لا يوجد حجوزات بعد</td></tr>`;
+  showModal(`
+    <button class="close-x" id="mClose">✕</button>
+    <h3>الحجوزات</h3>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>الجهاز</th><th>الاسم</th><th>المعاد</th><th>الحالة</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `, 'wide');
+  document.getElementById('mClose').onclick = closeModal;
+  document.querySelectorAll('[data-cancel]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const r = reservations.find(x=>x.id===btn.getAttribute('data-cancel'));
+      if(r) r.status='cancelled';
+      await saveReservations();
+      openReservationsModal();
+    };
+  });
+}
+
+/* ===================== DEV SETTINGS (super-admin only — Kareem) ===================== */
+function openDevSettingsModal(){
+  showModal(`
+    <button class="close-x" id="mClose">✕</button>
+    <h3>إعدادات المطوّر</h3>
+    <div class="hint">تقدر تغيّر بيانات دخول حساب إدارة السنترال (Matrix) من هنا</div>
+    <div class="field"><label>إيميل حساب Matrix</label><input type="email" id="devMatrixEmail" value="${authConfig.matrixEmail}"></div>
+    <div class="field"><label>باسورد حساب Matrix</label><input type="text" id="devMatrixPass" value="${authConfig.matrixPass}"></div>
+    <div class="modal-actions">
+      <button class="btn primary" id="saveDevSettingsBtn">حفظ</button>
+    </div>
+  `);
+  document.getElementById('mClose').onclick = closeModal;
+  document.getElementById('saveDevSettingsBtn').onclick = async ()=>{
+    authConfig.matrixEmail = document.getElementById('devMatrixEmail').value.trim();
+    authConfig.matrixPass = document.getElementById('devMatrixPass').value.trim();
+    await saveAuthConfig();
+    closeModal();
+    pushToast('تم تحديث بيانات حساب Matrix');
   };
 }
 
@@ -815,6 +1003,41 @@ function setActive(target, ids){
 }
 
 /* ===================== HISTORY MODAL ===================== */
+let _chartByDevice = null, _chartTrend = null;
+function renderHistoryCharts(){
+  if(typeof Chart === 'undefined') return;
+  const byDeviceEl = document.getElementById('chartByDevice');
+  const trendEl = document.getElementById('chartTrend');
+  if(!byDeviceEl || !trendEl) return;
+
+  const byDevice = {};
+  DEVICE_DEFS.forEach(dv=>{ byDevice[dv.name] = 0; });
+  history.forEach(h=>{ byDevice[h.deviceName] = (byDevice[h.deviceName]||0) + h.cost; });
+
+  const days = [];
+  const dayTotals = [];
+  for(let i=6;i>=0;i--){
+    const d = new Date(nowMs() - i*86400000);
+    const key = d.toDateString();
+    days.push(d.toLocaleDateString('ar-EG',{weekday:'short'}));
+    const total = history.filter(h=> new Date(h.endTime).toDateString()===key).reduce((a,h)=>a+h.cost,0);
+    dayTotals.push(total);
+  }
+
+  if(_chartByDevice) _chartByDevice.destroy();
+  if(_chartTrend) _chartTrend.destroy();
+
+  _chartByDevice = new Chart(byDeviceEl, {
+    type:'bar',
+    data:{ labels:Object.keys(byDevice), datasets:[{ label:'الإيراد (ج.م)', data:Object.values(byDevice), backgroundColor:'rgba(155,59,255,0.55)', borderColor:'#9b3bff', borderWidth:1, borderRadius:6 }] },
+    options:{ plugins:{legend:{display:false}, title:{display:true, text:'الإيراد لكل جهاز', color:'#eae5ff'}}, scales:{ x:{ticks:{color:'#9c93bf'}, grid:{color:'rgba(255,255,255,0.05)'}}, y:{ticks:{color:'#9c93bf'}, grid:{color:'rgba(255,255,255,0.05)'}} } }
+  });
+  _chartTrend = new Chart(trendEl, {
+    type:'line',
+    data:{ labels:days, datasets:[{ label:'الإيراد اليومي', data:dayTotals, borderColor:'#28f0e0', backgroundColor:'rgba(40,240,224,0.15)', fill:true, tension:0.35, pointBackgroundColor:'#28f0e0' }] },
+    options:{ plugins:{legend:{display:false}, title:{display:true, text:'آخر 7 أيام', color:'#eae5ff'}}, scales:{ x:{ticks:{color:'#9c93bf'}, grid:{color:'rgba(255,255,255,0.05)'}}, y:{ticks:{color:'#9c93bf'}, grid:{color:'rgba(255,255,255,0.05)'}} } }
+  });
+}
 function openHistoryModal(){
   const rows = history.length ? history.map(h=>`
     <tr>
@@ -837,6 +1060,14 @@ function openHistoryModal(){
     <button class="close-x" id="mClose">✕</button>
     <h3>سجل الجلسات</h3>
     <div class="hint">إجمالي إيراد اليوم: <b style="color:var(--green)">${totalToday} ج.م</b></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">
+      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--panel-line); border-radius:10px; padding:10px;">
+        <canvas id="chartByDevice" height="160"></canvas>
+      </div>
+      <div style="background:rgba(255,255,255,0.03); border:1px solid var(--panel-line); border-radius:10px; padding:10px;">
+        <canvas id="chartTrend" height="160"></canvas>
+      </div>
+    </div>
     <div style="overflow-x:auto;">
       <table>
         <thead><tr><th>الجهاز</th><th>من</th><th>إلى</th><th>النوع</th><th>المدة</th><th>الحساب</th><th></th></tr></thead>
@@ -845,6 +1076,7 @@ function openHistoryModal(){
     </div>
   `, 'wide');
   document.getElementById('mClose').onclick = closeModal;
+  renderHistoryCharts();
   document.querySelectorAll('[data-hid]').forEach(btn=>{
     btn.onclick = async ()=>{
       history = history.filter(h=>h.id!==btn.getAttribute('data-hid'));
