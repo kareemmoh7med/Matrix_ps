@@ -48,12 +48,63 @@
     100%{background-position:0% 0%, 100% 0%, 0 0;}
   }
   #matrixRain{position:fixed; inset:0; z-index:0; opacity:0.16; pointer-events:none;}
+  #cursorTrail{position:fixed; inset:0; z-index:45; pointer-events:none;}
   .scanlines{
     position:fixed; inset:0; pointer-events:none; z-index:1;
     background:repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
   }
   .vignette{position:fixed; inset:0; pointer-events:none; z-index:1; box-shadow: inset 0 0 160px rgba(0,0,0,0.75);}
   .wrap{position:relative; z-index:2; max-width:1180px; margin:0 auto; padding:20px 16px 60px;}
+
+  /* ===== football pitch animation strip ===== */
+  .pitch-strip{
+    position:relative; height:128px; margin:18px 0 6px; border-radius:14px; overflow:hidden;
+    background:
+      radial-gradient(ellipse at 50% 120%, rgba(40,240,224,0.10), transparent 60%),
+      linear-gradient(180deg, #071018, #050a10 60%, #030608);
+    border:1px solid var(--panel-line);
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.6);
+  }
+  .pitch-strip::before{
+    content:''; position:absolute; left:50%; top:0; bottom:0; width:1px;
+    background:linear-gradient(180deg, transparent, rgba(40,240,224,0.35), transparent);
+  }
+  .pitch-strip::after{
+    content:''; position:absolute; left:50%; top:50%; width:56px; height:56px; margin:-28px 0 0 -28px;
+    border:1px solid rgba(40,240,224,0.25); border-radius:50%;
+  }
+  .player{ position:absolute; bottom:6px; width:56px; height:84px; filter:drop-shadow(0 0 8px rgba(155,59,255,0.55)); }
+  .player.player-left{ left:9%; }
+  .player.player-right{ left:auto; right:9%; transform:scaleX(-1); }
+  .player-svg .p-body{ fill:#150c30; stroke:var(--purple-bright); stroke-width:2; }
+  .player-svg .p-head{ fill:#150c30; stroke:var(--cyan); stroke-width:2; }
+  .player.player-right .player-svg .p-body{ stroke:var(--cyan); }
+  .player.player-right .player-svg .p-head{ stroke:var(--purple-bright); }
+  .player-svg .p-arm-l, .player-svg .p-arm-r{ stroke:var(--text-dim); stroke-width:3; stroke-linecap:round; }
+  .player-svg .p-leg-l, .player-svg .p-leg-r{ stroke-width:4; stroke-linecap:round; transform-box:fill-box; transform-origin:top center; }
+  .player-left .p-leg-l, .player-left .p-leg-r{ stroke:var(--purple-bright); }
+  .player-right .p-leg-l, .player-right .p-leg-r{ stroke:var(--cyan); }
+  @keyframes legSwingA{ 0%,100%{transform:rotate(-6deg);} 50%{transform:rotate(20deg);} }
+  @keyframes legSwingB{ 0%,100%{transform:rotate(20deg);} 50%{transform:rotate(-6deg);} }
+  .player-left .p-leg-l{ animation:legSwingA 1.05s ease-in-out infinite; }
+  .player-left .p-leg-r{ animation:legSwingB 1.05s ease-in-out infinite; }
+  .player-right .p-leg-l{ animation:legSwingA 0.95s ease-in-out infinite; animation-delay:.12s; }
+  .player-right .p-leg-r{ animation:legSwingB 0.95s ease-in-out infinite; animation-delay:.12s; }
+  .ball{
+    position:absolute; width:16px; height:16px; border-radius:50%; left:14%; bottom:6px;
+    background:radial-gradient(circle at 35% 30%, #fff, var(--cyan) 45%, var(--purple) 100%);
+    box-shadow:0 0 12px rgba(40,240,224,0.85), 0 0 22px rgba(155,59,255,0.5);
+    animation: ballArc 2.6s ease-in-out infinite alternate;
+  }
+  @keyframes ballArc{
+    0%   { left:12%; bottom:10px; transform:scale(0.85) rotate(0deg); }
+    50%  { left:50%; bottom:74px; transform:scale(1.05) rotate(200deg); }
+    100% { left:88%; bottom:10px; transform:scale(0.85) rotate(400deg); }
+  }
+  @media (max-width:560px){
+    .pitch-strip{ height:104px; }
+    .player{ width:44px; height:66px; }
+  }
 
   /* header */
   header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:26px; flex-wrap:wrap;}
@@ -211,6 +262,7 @@
 </head>
 <body>
 <canvas id="matrixRain"></canvas>
+<canvas id="cursorTrail"></canvas>
 <div class="scanlines"></div>
 <div class="vignette"></div>
 <div class="toast-wrap" id="toastWrap"></div>
@@ -226,6 +278,30 @@
     <div class="head-actions" id="headActions"></div>
   </header>
   <div id="installBar"></div>
+
+  <div class="pitch-strip">
+    <div class="player player-left">
+      <svg viewBox="0 0 60 90" class="player-svg" width="100%" height="100%">
+        <line class="p-arm-l" x1="22" y1="30" x2="10" y2="45"/>
+        <line class="p-arm-r" x1="38" y1="30" x2="50" y2="45"/>
+        <g class="p-leg-l"><line x1="26" y1="54" x2="20" y2="80"/></g>
+        <g class="p-leg-r"><line x1="34" y1="54" x2="40" y2="80"/></g>
+        <rect class="p-body" x="22" y="24" width="16" height="30" rx="7"/>
+        <circle class="p-head" cx="30" cy="14" r="9"/>
+      </svg>
+    </div>
+    <div class="player player-right">
+      <svg viewBox="0 0 60 90" class="player-svg" width="100%" height="100%">
+        <line class="p-arm-l" x1="22" y1="30" x2="10" y2="45"/>
+        <line class="p-arm-r" x1="38" y1="30" x2="50" y2="45"/>
+        <g class="p-leg-l"><line x1="26" y1="54" x2="20" y2="80"/></g>
+        <g class="p-leg-r"><line x1="34" y1="54" x2="40" y2="80"/></g>
+        <rect class="p-body" x="22" y="24" width="16" height="30" rx="7"/>
+        <circle class="p-head" cx="30" cy="14" r="9"/>
+      </svg>
+    </div>
+    <div class="ball"></div>
+  </div>
 
   <div class="section-title"><h2>الأجهزة</h2><div class="line"></div></div>
   <div class="grid" id="deviceGrid"></div>
@@ -297,6 +373,63 @@ function fireOverdueAlert(deviceName){
   playAlarmSound();
   showDeviceNotification(deviceName);
 }
+
+/* ===================== NEON CURSOR TRAIL ===================== */
+(function cursorTrail(){
+  const canvas = document.getElementById('cursorTrail');
+  const ctx = canvas.getContext('2d');
+  let w,h, particles=[];
+  function resize(){ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; }
+  window.addEventListener('resize', resize);
+  resize();
+  let lastX=null, lastY=null;
+  function spawn(x,y){
+    const colors = ['#28f0e0','#9b3bff','#b96bff'];
+    particles.push({
+      x, y,
+      vx:(Math.random()-0.5)*0.6,
+      vy:(Math.random()-0.5)*0.6 - 0.3,
+      r: 2+Math.random()*2.5,
+      life: 1,
+      color: colors[Math.floor(Math.random()*colors.length)]
+    });
+    if(particles.length>140) particles.splice(0, particles.length-140);
+  }
+  function handleMove(x,y){
+    if(lastX!==null){
+      const dist = Math.hypot(x-lastX, y-lastY);
+      const steps = Math.min(Math.max(Math.floor(dist/8),1), 6);
+      for(let i=0;i<steps;i++){
+        const t=i/steps;
+        spawn(lastX+(x-lastX)*t, lastY+(y-lastY)*t);
+      }
+    }
+    lastX=x; lastY=y;
+  }
+  window.addEventListener('mousemove', (e)=> handleMove(e.clientX, e.clientY));
+  window.addEventListener('touchmove', (e)=>{
+    if(e.touches && e.touches[0]) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, {passive:true});
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    for(let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.life -= 0.028;
+      if(p.life<=0){ particles.splice(i,1); continue; }
+      ctx.beginPath();
+      ctx.globalAlpha = Math.max(p.life,0);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 10;
+      ctx.arc(p.x, p.y, p.r*p.life, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
 
 /* ===================== MATRIX RAIN BACKGROUND ===================== */
 (function matrixRain(){
